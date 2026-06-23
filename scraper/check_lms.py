@@ -132,7 +132,7 @@ def run_scraper():
     # Debugging check: see what cookies actually came back
     print(f"[i] Available session cookies: {session.cookies.get_dict()}")
     
-    if "cms=" not in session.cookies.get_dict():
+    if "cms" not in session.cookies.get_dict():
         print("[-] Authentication Rejected: Cookie state validation checks failed.")
         # Let's print out if there's an alert message on the page (e.g. invalid password text)
         error_soup = BeautifulSoup(login_res.text, 'html.parser')
@@ -143,7 +143,7 @@ def run_scraper():
         
     print("[+] CMS Session established.")
 
-    
+
     # STEP 3: Handle structural transition pass onto LMS
     print("[+] Intercepting temporary LMS redirect tracking vectors...")
     handoff_url = "https://cms.bahria.edu.pk/Sys/Common/GoToLMS.aspx"
