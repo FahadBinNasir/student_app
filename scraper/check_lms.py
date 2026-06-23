@@ -71,7 +71,9 @@ def run_scraper():
 
     session = requests.Session()
     session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5'
     })
 
     login_url = "https://cms.bahria.edu.pk/Sys/Common/Login.aspx"
@@ -80,11 +82,27 @@ def run_scraper():
     print("[+] Fetching fresh ASP.NET ViewState metrics from CMS portal...")
     try:
         get_res = session.get(login_url, timeout=20)
+        print(f"[i] CMS Server responded with Status Code: {get_res.status_code}")
+        
         soup = BeautifulSoup(get_res.text, 'html.parser')
         
-        view_state = soup.find('input', {'name': '__VIEWSTATE'})['value']
-        view_state_gen = soup.find('input', {'name': '__VIEWSTATEGENERATOR'})['value']
-        event_val = soup.find('input', {'name': '__EVENTVALIDATION'})['value']
+        vs_element = soup.find('input', {'name': '__VIEWSTATE'})
+        vsg_element = soup.find('input', {'name': '__VIEWSTATEGENERATOR'})
+        ev_element = soup.find('input', {'name': '__EVENTVALIDATION'})
+        
+        if not vs_element or not vsg_element or not ev_element:
+            print("[-] Critical Error: ASP.NET lifecycle variables are completely missing from the HTML body.")
+            print("[i] Snippet of server response text received (Check if blocked or firewall page):")
+            print("-" * 60)
+            print(get_res.text[:1200])  # Dump out first 1200 characters to figure out why it failed
+            print("-" * 60)
+            sys.exit(1)
+            
+        view_state = vs_element['value']
+        view_state_gen = vsg_element['value']
+        event_val = ev_element['value']
+        print("[+] Base ViewState elements compiled successfully.")
+        
     except Exception as e:
         print(f"[-] Failed structural compilation of base ViewState elements: {e}")
         sys.exit(1)
@@ -122,7 +140,6 @@ def run_scraper():
     print("[+] LMS Core Synchronization complete.")
 
     # STEP 4: Pull target Course Assignment Lists
-    # For automation visibility, we evaluate major operational core identifiers
     courses_to_check = [
         {'id': '101', 'name': 'Software Quality Engineering'},
         {'id': '103', 'name': 'Cloud Computing'},
