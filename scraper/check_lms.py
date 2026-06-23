@@ -11,7 +11,6 @@ from firebase_admin import credentials, messaging
 # ---------------------------------------------------------------------------
 def init_firebase():
     """Initializes Firebase Admin SDK using repository runtime environment vars."""
-    # Read the raw service account JSON string securely injected from GitHub Secrets
     cred_json_str = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
     if not cred_json_str:
         print("[-] Error: Missing FIREBASE_SERVICE_ACCOUNT_JSON. Cannot push notifications.")
@@ -44,7 +43,7 @@ def send_push_notification(token, title, body):
             priority='high',
             notification=messaging.AndroidNotification(
                 sound='default',
-                color='#2563EB', # Branded deep navy blue
+                color='#2563EB',
             ),
         ),
         token=token,
@@ -60,7 +59,6 @@ def send_push_notification(token, title, body):
 # CMS & LMS WEBSCRAPING HANDSHAKE PIPELINE
 # ---------------------------------------------------------------------------
 def run_scraper():
-    # 1. Capture dynamic runtime inputs from workflow runner secrets
     enrollment = os.environ.get('ENROLLMENT')
     password = os.environ.get('PASSWORD')
     device_token = os.environ.get('FCM_DEVICE_TOKEN')
@@ -76,7 +74,8 @@ def run_scraper():
         'Accept-Language': 'en-US,en;q=0.5'
     })
 
-    login_url = "https://cms.bahria.edu.pk/Sys/Common/Login.aspx"
+    # Calibrated to the exact sub-directory student landing page
+    login_url = "https://cms.bahria.edu.pk/Logins/Student/Login.aspx"
     
     # STEP 1: Parse passing state verification values out of hidden framework outputs
     print("[+] Fetching fresh ASP.NET ViewState metrics from CMS portal...")
@@ -91,11 +90,7 @@ def run_scraper():
         ev_element = soup.find('input', {'name': '__EVENTVALIDATION'})
         
         if not vs_element or not vsg_element or not ev_element:
-            print("[-] Critical Error: ASP.NET lifecycle variables are completely missing from the HTML body.")
-            print("[i] Snippet of server response text received (Check if blocked or firewall page):")
-            print("-" * 60)
-            print(get_res.text[:1200])  # Dump out first 1200 characters to figure out why it failed
-            print("-" * 60)
+            print("[-] Critical Error: ASP.NET lifecycle variables are missing from the HTML body.")
             sys.exit(1)
             
         view_state = vs_element['value']
@@ -107,18 +102,20 @@ def run_scraper():
         print(f"[-] Failed structural compilation of base ViewState elements: {e}")
         sys.exit(1)
 
-    # STEP 2: Issue authoritative POST containing full identity attributes
+    # STEP 2: Issue authoritative POST matching exact HTML structural parameters
     payload = {
         '__VIEWSTATE': view_state,
         '__VIEWSTATEGENERATOR': view_state_gen,
         '__EVENTVALIDATION': event_val,
         '__EVENTTARGET': '',
+        '__EVENTARGUMENT': '',
+        '__LASTFOCUS': '',
         'ctl00$BodyPH$tbEnrollment': enrollment,
         'ctl00$BodyPH$tbPassword': password,
-        'ctl00$BodyPH$ddlInstituteID': '2',  # Karachi Campus
-        'ctl00$BodyPH$ddlSubUserType': 'None',
+        'ctl00$BodyPH$ddlInstituteID': '2',     # Karachi Campus
+        'ctl00$BodyPH$ddlSubUserType': 'None',   # Fixed: Programmatic option mapping value for Student
         'ctl00$hfJsEnabled': '0',
-        'ctl00$BodyPH$btnLogin': 'Login'
+        'ctl00$BodyPH$btnLogin': 'Sign In'       # Matches the new action text
     }
 
     print("[+] Executing stateful authentication handshake across CMS portal...")
@@ -150,7 +147,6 @@ def run_scraper():
     assignments_endpoint = "https://lms.bahria.edu.pk/Student/Assignments.php"
     cache_file = "scraper/last_known_state.json"
     
-    # Load previously cached baseline if running over warm workspace histories
     if os.path.exists(cache_file):
         with open(cache_file, 'r') as f:
             history = json.load(f)
@@ -175,15 +171,12 @@ def run_scraper():
                 status = cols[4].text.strip()
                 deadline = cols[7].text.strip()
                 
-                # Combine hash parameters to prevent key collisions across metrics
                 task_key = f"{course['id']}_{hash(title)}"
                 current_state[task_key] = {'title': title, 'status': status, 'deadline': deadline}
                 
-                # Evaluation Rule: Alert if completely unseen or changed status profiles occur
                 if task_key not in history:
                     new_assignments_found.append((course['name'], title, deadline))
 
-    # Commit state changes out to clean structural workspace caches
     with open(cache_file, 'w') as f:
         json.dump(current_state, f, indent=4)
 
