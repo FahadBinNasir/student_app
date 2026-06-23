@@ -102,7 +102,7 @@ def run_scraper():
         print(f"[-] Failed structural compilation of base ViewState elements: {e}")
         sys.exit(1)
 
-    # STEP 2: Issue authoritative POST matching exact HTML structural parameters
+   # STEP 2: Issue authoritative POST matching exact HTML structural parameters
     payload = {
         '__VIEWSTATE': view_state,
         '__VIEWSTATEGENERATOR': view_state_gen,
@@ -113,19 +113,37 @@ def run_scraper():
         'ctl00$BodyPH$tbEnrollment': enrollment,
         'ctl00$BodyPH$tbPassword': password,
         'ctl00$BodyPH$ddlInstituteID': '2',     # Karachi Campus
-        'ctl00$BodyPH$ddlSubUserType': 'None',   # Fixed: Programmatic option mapping value for Student
+        'ctl00$BodyPH$ddlSubUserType': 'None',   # 'None' maps to Student in HTML
         'ctl00$hfJsEnabled': '0',
-        'ctl00$BodyPH$btnLogin': 'Sign In'       # Matches the new action text
+        'ctl00$BodyPH$btnLogin': 'Sign In'       
     }
 
     print("[+] Executing stateful authentication handshake across CMS portal...")
+    
+    # Securely append context routing headers to fool ASP.NET validation
+    session.headers.update({
+        'Origin': 'https://cms.bahria.edu.pk',
+        'Referer': 'https://cms.bahria.edu.pk/Logins/Student/Login.aspx',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    })
+    
     login_res = session.post(login_url, data=payload, timeout=20)
+    
+    # Debugging check: see what cookies actually came back
+    print(f"[i] Available session cookies: {session.cookies.get_dict()}")
     
     if "cms=" not in session.cookies.get_dict():
         print("[-] Authentication Rejected: Cookie state validation checks failed.")
+        # Let's print out if there's an alert message on the page (e.g. invalid password text)
+        error_soup = BeautifulSoup(login_res.text, 'html.parser')
+        alert_div = error_soup.find(id="pageAlerts_up")
+        if alert_div and alert_div.text.strip():
+            print(f"[!] Server Alert Message: {alert_div.text.strip()}")
         sys.exit(1)
+        
     print("[+] CMS Session established.")
 
+    
     # STEP 3: Handle structural transition pass onto LMS
     print("[+] Intercepting temporary LMS redirect tracking vectors...")
     handoff_url = "https://cms.bahria.edu.pk/Sys/Common/GoToLMS.aspx"
