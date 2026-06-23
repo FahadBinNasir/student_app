@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "563394419763",
+    "project_id": "cms-lms-bahria",
+    "storage_bucket": "cms-lms-bahria.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:563394419763:android:45eb51bc9add9b9b511746",
+        "android_client_info": {
+          "package_name": "com.bukc.student"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvSl1IdcPRqNR3UmmGAQbNUtq3ceIW1ug"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
